@@ -59,7 +59,7 @@ bool InvokeCommand(string command, params string[] args)
         case "count":
             var countStats = IterateRepositories<CountStats>(new CountAnalysis(true), DateTime.MinValue ,args);
             PrintStats(countStats);
-            var consolidated = countStats.Consolidate();
+            var consolidated = countStats.Consolidate(new CountStats("Consolidated"));
             consolidated.PrintFriendly();
             break;
         case "contribution":
@@ -73,10 +73,14 @@ bool InvokeCommand(string command, params string[] args)
         case "commits":
             var commitStats = IterateRepositories<CommitStats>(new CommitAnalysis(true), DateTime.MinValue, args);
             PrintStats(commitStats);
+            var consolidated2 = commitStats.Consolidate(new CommitStats("Consolidated"));
+            consolidated2.PrintFriendly();
             break;
         case "commits3m":
             var commitStats3m = IterateRepositories<CommitStats>(new CommitAnalysis(true), DateTime.Now.AddMonths(-3), args);
             PrintStats(commitStats3m);
+            var consolidated3 = commitStats3m.Consolidate(new CommitStats("Consolidated"));
+            consolidated3.PrintFriendly();            
             break;
         default: 
             Console.WriteLine("Unknown command");
@@ -86,7 +90,7 @@ bool InvokeCommand(string command, params string[] args)
     return false;
 }
 
-void PrintStats<T>(GitStatisticsList<T> stats) where T: GitStatistics, new()
+void PrintStats<T>(GitStatisticsList<T> stats) where T: GitStatistics
 {
     foreach (var stat in stats)
     {
@@ -94,7 +98,7 @@ void PrintStats<T>(GitStatisticsList<T> stats) where T: GitStatistics, new()
     }
 }
 
-GitStatisticsList<T> IterateRepositories<T>(GitAnalysis analysis, DateTime startTime, params string[] args) where T: GitStatistics, new()
+GitStatisticsList<T> IterateRepositories<T>(GitAnalysis analysis, DateTime startTime, params string[] args) where T: GitStatistics
 {
     var stats = new GitStatisticsList<T>();
     List<string> repoNames = new List<string>();

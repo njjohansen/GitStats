@@ -17,7 +17,7 @@ namespace ShellApp
         {            
         }
 
-        public CountStats(): base("empty", false)
+        public CountStats(string repoName): base(repoName, false)
         {
 
         }
@@ -37,20 +37,24 @@ namespace ShellApp
 
         public override void PrintSystem()
         {
-            Console.WriteLine("{0}", RepoName);
+            var table = CreatePrintTable();
             foreach (var fileStat in FileStats)
             {
-                Console.WriteLine("{0};{1}", fileStat.Key, fileStat.Value);
+                table.AddRow(fileStat.Key, fileStat.Value.ToString("N0", CultureInfo.InvariantCulture));
             }
+            table.WriteSystem();
+            Console.WriteLine("Repo: {0} analyzed in {1} bringing total count to: {2}", RepoName, Duration, _totalLines);
         }
 
         public override void PrintFriendly()
-        {            
+        {   
+            var table = CreatePrintTable();
             foreach (var fileStat in FileStats)
             {
-                Console.WriteLine("Lines in (*{0} files): {1}", fileStat.Key, fileStat.Value);                
+                table.AddRow(fileStat.Key, fileStat.Value.ToString("N0", CultureInfo.InvariantCulture));                
             }
-            Console.WriteLine("Repo: {0} analyzed in {1} bringing total count to: {2}", RepoName, Duration, _totalLines);
+            table.Write();
+            Console.WriteLine("Repo: {0} analyzed in {1} bringing total count to: {2}", RepoName, Duration, _totalLines);            
         }
 
         protected override void Add(GitStatistics other)
@@ -64,6 +68,11 @@ namespace ShellApp
                 this.Add(count.Key, count.Value);
             }
 
+        }
+
+        protected override StatsTable CreatePrintTable()
+        {
+            return new StatsTable("File Extension", "Line Count" );
         }
     }
 }

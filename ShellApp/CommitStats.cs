@@ -13,12 +13,6 @@ namespace ShellApp
     {
         protected Dictionary<string, string> _nameMap = new Dictionary<string, string>();
         protected Dictionary<string, CommitAuthorStats> _authorStats = new Dictionary<string, CommitAuthorStats>();
-        private Stopwatch _timerHeadPatch = new Stopwatch();
-        public Stopwatch TimerHeadPatch { get => _timerHeadPatch; }
-        private Stopwatch _timerCommitPatch = new Stopwatch();
-        public Stopwatch TimerCommitPatch { get => _timerCommitPatch; }
-        private long _commitCnt = 0;
-        public long CommitCnt { get => _commitCnt; set => _commitCnt = value; }
         
         public CommitStats(string repoName, IEnumerable<Tuple<string, string>> nameMap, bool verbose = false) : base(repoName, verbose)
         {
@@ -30,7 +24,12 @@ namespace ShellApp
                 }
             }
         }
-        public CommitStats() : base("empty", false)
+        protected CommitStats() : base("empty", false)
+        {
+
+        }
+
+        public CommitStats(string repoName) : base(repoName, false)
         {
 
         }
@@ -67,36 +66,92 @@ namespace ShellApp
             CommitAuthorStats authorStat = getAuthor(name, email);
             authorStat.RegisterModification(when, linesAdded, linesRemoved);
         }
-
-        public override string ToString()
-        {
-            var sb = new StringBuilder();
-            foreach (CommitAuthorStats authorStat in _authorStats.Values)
-            {
-                sb.AppendLine(authorStat.ToString());
-            }
-            return sb.ToString();
-        }
-
+   
         protected override void Add(GitStatistics other)
         {
             var otherCasted = other as CommitStats;
             if (otherCasted == null)
                 throw new InvalidCastException("Can only add CountStats to CountStats!");
-            //TODO
+
+            // Merge name maps (do not overwrite existing mappings)
+            if (otherCasted._nameMap != null)
+            {
+                foreach (var kvp in otherCasted._nameMap)
+                {
+                    if (!_nameMap.ContainsKey(kvp.Key))
+                        _nameMap[kvp.Key] = kvp.Value;
+                }
+            }
+
+            // Merge author stats
+            if (otherCasted._authorStats != null)
+            {
+                foreach (var kvp in otherCasted._authorStats)
+                {
+                    var id = kvp.Key;
+                    var otherAuthor = kvp.Value;
+
+                    if (_authorStats.TryGetValue(id, out var existing))
+                    {
+                        // accumulate numeric totals
+                        existing.LinesAdded += otherAuthor.LinesAdded;
+                        existing.LinesRemoved += otherAuthor.LinesRemoved;
+                        existing.LinesSurvived += otherAuthor.LinesSurvived;
+
+                        // merge modifications
+                        existing.Modifications.AddRange(otherAuthor.Modifications);
+                        existing._sorted = false;
+                    }
+                    else
+                    {
+                        // clone otherAuthor into a new CommitAuthorStats
+                        var clone = new CommitAuthorStats(otherAuthor.Name, otherAuthor.Email);
+                        clone.LinesAdded = otherAuthor.LinesAdded;
+                        clone.LinesRemoved = otherAuthor.LinesRemoved;
+                        clone.LinesSurvived = otherAuthor.LinesSurvived;
+                        clone.Modifications.AddRange(otherAuthor.Modifications);
+                        clone._sorted = otherAuthor._sorted;
+                        _authorStats.Add(id, clone);
+                    }
+                }
+            }
         }
 
         public override void PrintSystem()
         {
-            Console.WriteLine(ToString());
+            Console.WriteLine($"Repo: {RepoName}");
+            var table = CreatePrintTable();            
+            foreach (CommitAuthorStats authorStat in _authorStats.Values)
+            {
+                authorStat.AddRow(table);
+            }
+            table.WriteSystem();
         }
 
         public override void PrintFriendly()
         {
-            Console.WriteLine(ToString());
-            Console.WriteLine($"Time for Commit patch calculations: {TimerCommitPatch.Elapsed.ToString(@"hh\:mm\:ss\.fff")}");
-            Console.WriteLine($"Time for HEAD patch calculations: {TimerHeadPatch.Elapsed.ToString(@"hh\:mm\:ss\.fff")}");            
-            Console.WriteLine($"Total Commits Analyzed: {CommitCnt}");
+            Console.WriteLine($"Repo: {RepoName}");
+            var table = CreatePrintTable();
+            foreach (CommitAuthorStats authorStat in _authorStats.Values)
+            {
+                authorStat.AddRow(table);
+            }
+            table.Write(ConsoleTables.Format.Minimal);
+        }
+
+        protected override StatsTable CreatePrintTable()
+        {
+            return new StatsTable(
+                "Email",
+                "Added",
+                "Removed",
+                "Survived",
+                "1st Commit",
+                "Last Commit",
+                "Commit days",
+                "Commits period",
+                "Commit Cnt"
+             );
         }
     }
 
@@ -186,6 +241,11 @@ namespace ShellApp
         public void RegisterSurvival(long lines)
         {
             LinesSurvived += lines;
+        }
+
+        public void AddRow(StatsTable table)
+        {
+            table.AddRow(GitStatistics.TruncateStr(Email, 30), LinesAdded, LinesRemoved, LinesSurvived, FirstCommit.ToString("yyyy-MM-dd"), LastCommit.ToString("yyyy-MM-dd"), DaysOfCommits, PeriodOfCommits.TotalDays.ToString("F2"), NumberOfCommits);
         }
 
         public override string ToString()

@@ -20,7 +20,7 @@ namespace ShellApp
         }
         public override GitStatistics Analyze(string repoName, DateTime startTime, AppSettings settings)
         {
-            _stats = new CommitStats();
+            _stats = new CommitStats(repoName);
             _stats.Start();
             var repoPath = Path.Combine(settings.Git.WorkingDirectory, repoName);
             
@@ -75,7 +75,7 @@ namespace ShellApp
                                 linesAdded++;
                                 if (_headTreeHasher.HasLine(entryParentToCommit.Path, lineStr))
                                 {
-                                    Console.Write($"Survived Line in Commit {commit.Id}: {line.Content}");
+                                    //Console.Write($"Survived Line in Commit {commit.Id}: {line.Content}");
                                     _stats.RegisterSurvival(commit.Author.Name, commit.Author.Email, 1);
                                 }
 

@@ -35,5 +35,10 @@ namespace ShellApp
         {
             
         }
+
+        protected override StatsTable CreatePrintTable()
+        {
+            return new StatsTable();
+        }
     }
 }

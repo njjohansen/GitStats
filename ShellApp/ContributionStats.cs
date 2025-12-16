@@ -79,13 +79,40 @@ namespace ShellApp
 
         public override void PrintSystem()
         {
-            Console.WriteLine(ToString());
+            Console.WriteLine($"Repo: {RepoName}");
+            var table = CreatePrintTable();
+            foreach (AuthorStats authorStat in _authorStats.Values)
+            {
+                authorStat.AddRow(table);
+            }
+            table.WriteSystem();
         }
 
         public override void PrintFriendly()
         {
-            Console.WriteLine(ToString());
+            Console.WriteLine($"Repo: {RepoName}");
+            var table = CreatePrintTable();
+            foreach (AuthorStats authorStat in _authorStats.Values)
+            {
+                authorStat.AddRow(table);
+            }
+            table.Write(ConsoleTables.Format.Minimal);
         }
+
+        protected override StatsTable CreatePrintTable()
+        {
+            return new StatsTable(
+                "Email",
+                "Added",
+                "Removed",
+                "Survived",
+                "1st Commit",
+                "Last Commit",
+                "Commit days",
+                "Commits period",
+                "Commit Cnt"
+             );
+        }   
     }
 
     class AuthorStats
@@ -176,6 +203,10 @@ namespace ShellApp
             LinesSurvived += lines;
         }
 
+        public void AddRow(StatsTable table)
+        {
+            table.AddRow(GitStatistics.TruncateStr(Email,30), LinesAdded, LinesRemoved, LinesSurvived, FirstCommit.ToString("yyyy-MM-dd"), LastCommit.ToString("yyyy-MM-dd"), DaysOfCommits, PeriodOfCommits.TotalDays.ToString("F2"), NumberOfCommits);
+        }
         public override string ToString()
         {
             return String.Format("{0};{1};{2};{3};{4};{5};{6};{7};{8}", Email, LinesAdded, LinesRemoved, LinesSurvived, FirstCommit.ToString("yyyy-MM-dd"), LastCommit.ToString("yyyy-MM-dd"), DaysOfCommits, PeriodOfCommits.TotalDays.ToString("F2"), NumberOfCommits);
