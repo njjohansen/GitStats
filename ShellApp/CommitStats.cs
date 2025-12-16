@@ -1,0 +1,209 @@
+﻿using LibGit2Sharp;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ShellApp
+{
+    class CommitStats : GitStatistics
+    {
+        protected Dictionary<string, string> _nameMap = new Dictionary<string, string>();
+        protected Dictionary<string, CommitAuthorStats> _authorStats = new Dictionary<string, CommitAuthorStats>();
+        private Stopwatch _timerHeadPatch = new Stopwatch();
+        public Stopwatch TimerHeadPatch { get => _timerHeadPatch; }
+        private Stopwatch _timerCommitPatch = new Stopwatch();
+        public Stopwatch TimerCommitPatch { get => _timerCommitPatch; }
+        private long _commitCnt = 0;
+        public long CommitCnt { get => _commitCnt; set => _commitCnt = value; }
+        
+        public CommitStats(string repoName, IEnumerable<Tuple<string, string>> nameMap, bool verbose = false) : base(repoName, verbose)
+        {
+            if (nameMap != null)
+            {
+                foreach (var pair in nameMap)
+                {
+                    _nameMap.Add(pair.Item1, pair.Item2);
+                }
+            }
+        }
+        public CommitStats() : base("empty", false)
+        {
+
+        }
+
+        protected string getAuthorId(string email)
+        {
+            string convertedName;
+            if (_nameMap != null && _nameMap.TryGetValue(email, out convertedName))
+                return convertedName;
+            return email;
+        }
+
+        protected CommitAuthorStats getAuthor(string name, string email)
+        {
+            string convertedId = getAuthorId(email);
+
+            CommitAuthorStats authorStats = null;
+            if (!_authorStats.TryGetValue(convertedId, out authorStats))
+            {
+                authorStats = new CommitAuthorStats(name, email);
+                _authorStats.Add(convertedId, authorStats);
+            }
+            return authorStats;
+        }
+
+        public void RegisterSurvival(string name, string email, long lines)
+        {
+            CommitAuthorStats authorStat = getAuthor(name, email);
+            authorStat.RegisterSurvival(lines);
+        }
+
+        public void RegisterModification(string name, string email, DateTime when, long linesAdded, long linesRemoved)
+        {
+            CommitAuthorStats authorStat = getAuthor(name, email);
+            authorStat.RegisterModification(when, linesAdded, linesRemoved);
+        }
+
+        public override string ToString()
+        {
+            var sb = new StringBuilder();
+            foreach (CommitAuthorStats authorStat in _authorStats.Values)
+            {
+                sb.AppendLine(authorStat.ToString());
+            }
+            return sb.ToString();
+        }
+
+        protected override void Add(GitStatistics other)
+        {
+            var otherCasted = other as CommitStats;
+            if (otherCasted == null)
+                throw new InvalidCastException("Can only add CountStats to CountStats!");
+            //TODO
+        }
+
+        public override void PrintSystem()
+        {
+            Console.WriteLine(ToString());
+        }
+
+        public override void PrintFriendly()
+        {
+            Console.WriteLine(ToString());
+            Console.WriteLine($"Time for Commit patch calculations: {TimerCommitPatch.Elapsed.ToString(@"hh\:mm\:ss\.fff")}");
+            Console.WriteLine($"Time for HEAD patch calculations: {TimerHeadPatch.Elapsed.ToString(@"hh\:mm\:ss\.fff")}");            
+            Console.WriteLine($"Total Commits Analyzed: {CommitCnt}");
+        }
+    }
+
+    class CommitAuthorStats
+    {
+        public CommitAuthorStats(string name, string email)
+        {
+            Name = name;
+            Email = email;
+            LinesRemoved = 0;
+            LinesAdded = 0;
+            LinesSurvived = 0;
+        }
+        public string Name { get; private set; }
+        public string Email { get; private set; }
+
+        protected List<CommitModification> modifications = new List<CommitModification>();
+        public List<CommitModification> Modifications { get { return modifications; } }
+
+        public long LinesAdded { get; set; }
+        public long LinesRemoved { get; set; }
+        public long LinesSurvived { get; set; }
+
+        public bool _sorted = false;
+
+        private void EnsureModificationSort()
+        {
+            if (!_sorted)
+            {
+                modifications.Sort((m1, m2) => m1.When.CompareTo(m2.When));
+                _sorted = true;
+            }
+        }
+
+        public long DaysOfCommits
+        {
+            get
+            {
+                EnsureModificationSort();
+                long cnt = 0;
+                DateTime last = DateTime.MinValue;
+                foreach (CommitModification mod in modifications)
+                {
+                    if (mod.When.Date != last)
+                    {
+                        cnt++;
+                        last = mod.When.Date;
+                    }
+                }
+                return cnt;
+            }
+        }
+
+        public long NumberOfCommits => modifications.Count;
+        public TimeSpan PeriodOfCommits => LastCommit - FirstCommit;
+
+        public DateTime FirstCommit
+        {
+            get
+            {
+                EnsureModificationSort();
+                if (modifications.Count > 0)
+                    return modifications[0].When;
+                return DateTime.MinValue;
+            }
+        }
+
+        public DateTime LastCommit
+        {
+            get
+            {
+                EnsureModificationSort();
+                if (modifications.Count > 0)
+                    return modifications[modifications.Count - 1].When;
+                return DateTime.MinValue;
+            }
+        }
+
+        public void RegisterModification(DateTime when, long linesAdded, long linesRemoved)
+        {
+            LinesAdded += linesAdded;
+            LinesRemoved += linesRemoved;
+            Modifications.Add(new CommitModification(when, linesAdded, linesRemoved));
+            _sorted = false;
+        }
+
+        public void RegisterSurvival(long lines)
+        {
+            LinesSurvived += lines;
+        }
+
+        public override string ToString()
+        {
+            return String.Format("{0};{1};{2};{3};{4};{5};{6};{7};{8}", Email, LinesAdded, LinesRemoved, LinesSurvived, FirstCommit.ToString("yyyy-MM-dd"), LastCommit.ToString("yyyy-MM-dd"), DaysOfCommits, PeriodOfCommits.TotalDays.ToString("F2"), NumberOfCommits);
+        }
+    }
+
+    public class CommitModification
+    {
+        public CommitModification(DateTime when, long linesAdded, long linesRemoved)
+        {
+            When = when;
+            LinesAdded = linesAdded;
+            LinesRemoved = linesRemoved;
+        }
+        public DateTime When { get; set; }
+        public long LinesAdded { get; set; }
+        public long LinesRemoved { get; set; }
+    }
+}
