@@ -20,3 +20,6 @@ Having the repositories fetched, the following commands to build statistics:
 1. Clone the repository.
 2. Configure 'appsettings.json' with repos urls, file types, Azure DevOpS Personal-Access-Token and branch name.
 3. Build and run the project with your favorite build tool (e.g. Visual Studio, dotnet CLI, etc.).
+
+## Note
+The repos are store in 'C:\Users\<my user>\AppData\Local\GitStatistics' or a the specified path in the 'appsettings.json' file.

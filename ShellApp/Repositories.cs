@@ -49,9 +49,31 @@ namespace ShellApp
                     var remote = repo.Network.Remotes["origin"];
                     var refSpecs = remote.FetchRefSpecs.Select(x => x.Specification).ToList();
                     Commands.Fetch(repo, remote.Name, refSpecs, fetchOptions, null);
+                    Console.WriteLine($"Fetched changes for {repoName}");
+                    // Ensure the current local branch has upstream/tracking information set.
+                    // If not, attempt to set it to origin/<branchName> so Pull can operate.
+                    //var head = repo.Head;
+                    //try
+                    //{
+                    //    var remoteBranchName = $"{remote.Name}/{defaultBranch}";
+                    //    var remoteBranch = repo.Branches[remoteBranchName];
 
-                    var mergeResult = Commands.Pull(repo, new Signature("Merger", "merger@example.com", DateTimeOffset.Now), new PullOptions{FetchOptions = fetchOptions});
-                    Console.WriteLine($"Pulled changes for {repoName}: {mergeResult.Status}");
+                    //    // Some LibGit2Sharp versions expose TrackedBranch or UpstreamBranch; check for null via Head.TrackedBranch
+                    //    var hasTracking = head.TrackedBranch != null;
+
+                    //    if (!hasTracking && remoteBranch != null)
+                    //    {
+                    //        // Configure the local branch to track origin/<branch>
+                    //        repo.Branches.Update(head, b => { b.Remote = remote.Name; b.UpstreamBranch = head.FriendlyName; });
+                    //    }
+                    //}
+                    //catch
+                    //{
+                    //    // If any of the tracking operations fail, continue and let Pull report a meaningful error
+                    //}
+
+                    //var mergeResult = Commands.Pull(repo, new Signature("Merger", "merger@example.com", DateTimeOffset.Now), new PullOptions{FetchOptions = fetchOptions});
+                    //Console.WriteLine($"Pulled changes for {repoName}: {mergeResult.Status}");
                 }
             }
             else
@@ -64,6 +86,7 @@ namespace ShellApp
                     Username = $"",
                     Password = apiKey
                 };
+                //co.BranchName = defaultBranch;
                 //if (!String.IsNullOrEmpty(proxyUrl))
                 //{
                 //    co.FetchOptions.ProxyOptions.Url = proxyUrl;
