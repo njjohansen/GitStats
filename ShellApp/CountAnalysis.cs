@@ -19,8 +19,36 @@ namespace ShellApp
             {
                 // Check out the specified branch            
                 Branch branch = Commands.Checkout(repo, settings.Git.Branch);
-                Commit lastComit = branch.Tip;
-                CountLinesInTree(repo, lastComit.Tree, settings);
+
+                // Find the last commit on the given day (startTime.Date). If none, use the last commit before startTime.
+                Commit targetCommit = null;
+                var commits = branch.Commits.OrderBy(c => c.Author.When.LocalDateTime).ToList();
+
+                // Try to find commits on the same day
+                var lastOnDay = commits
+                    .Where(c => c.Author.When.LocalDateTime.Date == startTime.Date)
+                    .OrderByDescending(c => c.Author.When.LocalDateTime)
+                    .FirstOrDefault();
+
+                if (lastOnDay != null)
+                {
+                    targetCommit = lastOnDay;
+                }
+                else
+                {
+                    // Fallback: last commit at or before startTime
+                    var lastBefore = commits
+                        .Where(c => c.Author.When.LocalDateTime <= startTime)
+                        .OrderByDescending(c => c.Author.When.LocalDateTime)
+                        .FirstOrDefault();
+
+                    targetCommit = lastBefore ?? branch.Tip;
+                }
+                Console.WriteLine($"Counting lines on tree from commit (Author: , {targetCommit.Author.Name}, Date: {targetCommit.Author.When}).");
+                // Checkout the target commit (detached HEAD) so the working tree matches that commit
+                Commands.Checkout(repo, targetCommit);
+
+                CountLinesInTree(repo, targetCommit.Tree, settings);
             }
             _stats.Stop();
             return _stats;

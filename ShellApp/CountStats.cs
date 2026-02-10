@@ -43,18 +43,18 @@ namespace ShellApp
                 table.AddRow(fileStat.Key, fileStat.Value.ToString("N0", CultureInfo.InvariantCulture));
             }
             table.WriteSystem();
-            Console.WriteLine("Repo: {0} analyzed in {1} bringing total count to: {2}", RepoName, Duration, _totalLines);
+            Console.WriteLine("Repo: {0} analyzed in {1}.", RepoName, Duration);
         }
 
         public override void PrintFriendly()
-        {   
+        {
+            Console.WriteLine("Repo: {0} analyzed in {1}.", RepoName, Duration);
             var table = CreatePrintTable();
             foreach (var fileStat in FileStats)
             {
                 table.AddRow(fileStat.Key, fileStat.Value.ToString("N0", CultureInfo.InvariantCulture));                
             }
-            table.Write();
-            Console.WriteLine("Repo: {0} analyzed in {1} bringing total count to: {2}", RepoName, Duration, _totalLines);            
+            table.Write();            
         }
 
         protected override void Add(GitStatistics other)

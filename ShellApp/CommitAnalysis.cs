@@ -62,6 +62,11 @@ namespace ShellApp
 
                     foreach (var entryParentToCommit in patchParentToCommit)
                     {
+
+                        string extension = Path.GetExtension(entryParentToCommit.Path).ToLowerInvariant();
+                        if (!settings.Statistics.ExtensionsSet.Contains(extension))
+                            continue;
+
                         foreach (var line in entryParentToCommit.AddedLines)
                         {
                             // only count lines with at least <CodeLineMinLength> characters

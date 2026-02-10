@@ -1,8 +1,9 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using System;
-using System.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using ShellApp;
+using System;
+using System.Diagnostics;
+using System.Globalization;
 
 // Build configuration
 var configuration = new ConfigurationBuilder()
@@ -30,10 +31,12 @@ Console.WriteLine($"");
 Console.WriteLine($"Known commands: ");
 Console.WriteLine($"\tupdate [all | <repository name>] (default: all)");
 Console.WriteLine($"\tcount [all | <repository name>] (default: all)");
+Console.WriteLine($"\tcountdate [all | <repository name>] (default: all)");
 Console.WriteLine($"\tcontribution [all | <repository name>] (default: all)");
 Console.WriteLine($"\tcontribution3m [all | <repository name>] (default: all)");
 Console.WriteLine($"\tcommits [all | <repository name>] (default: all)");
 Console.WriteLine($"\tcommits3m [all | <repository name>] (default: all)");
+Console.WriteLine($"\tdelta [all | <repository name>] (default: all)");
 Console.WriteLine($"\texit");
 
 bool exit = false;
@@ -47,7 +50,9 @@ while (!exit)
 }
 
 bool InvokeCommand(string command, params string[] args)
-{    
+{
+    DateTime date;    
+
     switch (command.ToLower())
     {
         case "exit":
@@ -57,10 +62,19 @@ bool InvokeCommand(string command, params string[] args)
             PrintStats(updateStats);
             break;
         case "count":
-            var countStats = IterateRepositories<CountStats>(new CountAnalysis(true), DateTime.MinValue ,args);
+            var countStats = IterateRepositories<CountStats>(new CountAnalysis(true), DateTime.Now ,args);
             PrintStats(countStats);
             var consolidated = countStats.Consolidate(new CountStats("Consolidated"));
             consolidated.PrintFriendly();
+            break;
+        case "countdate":
+            if (GetConsoleDate("Last date of commit", out date))
+            {
+                var countDateStats = IterateRepositories<CountStats>(new CountAnalysis(true), DateTime.Now, args);
+                PrintStats(countDateStats);
+                var consolidated5 = countDateStats.Consolidate(new CountStats("Consolidated"));
+                consolidated5.PrintFriendly();
+            }
             break;
         case "contribution":
             var contribStats = IterateRepositories<ContributionStats>(new ContributionAnalysis(true), DateTime.MinValue, args);
@@ -82,12 +96,52 @@ bool InvokeCommand(string command, params string[] args)
             var consolidated3 = commitStats3m.Consolidate(new CommitStats("Consolidated"));
             consolidated3.PrintFriendly();            
             break;
+        case "delta":                                   
+            if( GetConsoleDate("Start date", out date))
+            {
+                var cntStatsS = IterateRepositories<CountStats>(new CountAnalysis(false), date, args);
+                var deltaStats = IterateRepositories<CountStats>(new DeltaAnalysis(false), date, args);
+                var cntStatsE = IterateRepositories<CountStats>(new CountAnalysis(false), DateTime.Now, args);
+                var cntStatsSConsolidated = cntStatsS.Consolidate(new CountStats("Lines at " + date.ToString("dd-MM-yyyy")));
+                var deltaStatsConsolidated = deltaStats.Consolidate(new CountStats("Unique lines added in the period"));
+                var cntStatsEConsolidated = cntStatsE.Consolidate(new CountStats("Lines today"));
+                cntStatsSConsolidated.PrintFriendly();
+                deltaStatsConsolidated.PrintFriendly();
+                cntStatsEConsolidated.PrintFriendly();
+            }
+            break;
         default: 
             Console.WriteLine("Unknown command");
             break;
 
     }
     return false;
+}
+
+
+bool GetConsoleDate(string label, out DateTime dateTime)
+{
+    Console.Write($"Please type '{label}' (dd-MM-yyyy): ");
+    string dateStr = Console.ReadLine();
+    DateTime startDate;
+    if (DateTime.TryParseExact(dateStr, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out dateTime))
+    {
+        if (dateTime > DateTime.Now)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"Date cannot be in the future.");
+            Console.ResetColor();
+            return false;
+        }
+        return true;
+    }
+    else
+    {
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"Invalid date format (dd-MM-yyyy).");
+        Console.ResetColor();
+        return false;
+    }
 }
 
 void PrintStats<T>(GitStatisticsList<T> stats) where T: GitStatistics
