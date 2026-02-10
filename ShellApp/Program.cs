@@ -29,7 +29,7 @@ foreach (var repo in appSettings.Git.Repositories)
 Console.WriteLine($"");
 
 Console.WriteLine($"Known commands: ");
-Console.WriteLine($"\tupdate [all | <repository name>] (default: all)");
+Console.WriteLine($"\tpull [all | <repository name>] (default: all)");
 Console.WriteLine($"\tcount [all | <repository name>] (default: all)");
 Console.WriteLine($"\tcountdate [all | <repository name>] (default: all)");
 Console.WriteLine($"\tcontribution [all | <repository name>] (default: all)");
@@ -57,7 +57,7 @@ bool InvokeCommand(string command, params string[] args)
     {
         case "exit":
             return true;
-        case "update":
+        case "pull":
             var updateStats = IterateRepositories<EmptyStats>(new UpdateAnalysis(true), DateTime.MinValue, args);
             PrintStats(updateStats);
             break;
