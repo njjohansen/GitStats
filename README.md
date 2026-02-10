@@ -17,4 +17,6 @@ Having the repositories fetched, the following commands to build statistics:
 * delta - count lines per file extension type at specified date and at head, and analyze commits between the two dates to calculate the number of surviving lines added in the period.
 
 ## Installation
-Clone the repository and build the project with your favorite build tool (e.g. Visual Studio, dotnet CLI, etc.).
+1. Clone the repository.
+2. Configure 'appsettings.json' with repos urls, file types, Azure DevOpS Personal-Access-Token and branch name.
+3. Build and run the project with your favorite build tool (e.g. Visual Studio, dotnet CLI, etc.).
